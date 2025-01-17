@@ -1,15 +1,35 @@
-// app/components/SignupForm.tsx
+// src/components/SignupForm.tsx
+"use client";
+
 import React, { useState } from 'react';
 import Input from "./ui/input"; // Import the Input component
-import Button from "./ui/button"; // Import the Button component
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
+import { Card, CardHeader, CardTitle,CardDescription, CardContent } from "./ui/card";
+import { Mail, KeyRound, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription} from "./ui/alert";
 
-const SignupForm = () => {
-  const [email, setEmail] = useState('');
+type Step = 'email' | 'otp' | 'success';
+
+export default function SignupForm() {
+    const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('email'); // 'email' | 'otp' | 'success'
+  const [step, setStep] = useState<Step>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [timer, setTimer] = useState(0);
+
+  const startResendTimer = () => {
+    setTimer(30);
+    const interval = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,10 +43,13 @@ const SignupForm = () => {
         body: JSON.stringify({ email })
       });
 
+      const data = await res.json();
+
       if (res.ok) {
         setStep('otp');
+        startResendTimer();
       } else {
-        setError('Failed to send OTP. Please try again.');
+        setError(data.message || 'Failed to send OTP');
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -47,10 +70,12 @@ const SignupForm = () => {
         body: JSON.stringify({ email, otp })
       });
 
+      const data = await res.json();
+
       if (res.ok) {
         setStep('success');
       } else {
-        setError('Invalid OTP. Please try again.');
+        setError(data.message || 'Invalid OTP');
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -59,67 +84,137 @@ const SignupForm = () => {
     }
   };
 
+  const handleResendOTP = async () => {
+    if (timer > 0) return;
+    await handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
+    startResendTimer();
+  };
+
+
   return (
-    <Card className="w-full max-w-md mx-auto">
-    <CardHeader>
-      <CardTitle>Sign Up</CardTitle>
-    </CardHeader>
-    <CardContent>
-      {step === 'email' && (
-        <form onSubmit={handleSendOTP} className="space-y-4">
-          <div>
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Sending...' : 'Send OTP'}
-          </Button>
-        </form>
-      )}
+    <div className="form-wrapper min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1 pb-8">
+          <CardTitle className="text-3xl font-bold tracking-tight text-center">
+            {step === 'email' && 'Sign up'}
+            {step === 'otp' && 'Verify Email'}
+            {step === 'success' && 'Welcome!'}
+          </CardTitle>
+          <CardDescription className="text-center text-gray-500">
+            {step === 'email' && 'Enter your email to get started'}
+            {step === 'otp' && 'Enter the verification code sent to your email'}
+            {step === 'success' && 'Your email has been verified successfully'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {step === 'email' && (
+            <form onSubmit={handleSendOTP} className="space-y-6">
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-12"
+                  required
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-medium"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                    Sending...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    Continue
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                )}
+              </Button>
+            </form>
+          )}
 
-      {step === 'otp' && (
-        <form onSubmit={handleVerifyOTP} className="space-y-4">
-          <p className="text-sm">Enter the code sent to {email}</p>
-          <Input
-            type="text"
-            placeholder="Enter OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            maxLength={6}
-            required
-          />
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Verifying...' : 'Verify OTP'}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setStep('email')}
-            className="w-full"
-          >
-            Change Email
-          </Button>
-        </form>
-      )}
+          {step === 'otp' && (
+            <form onSubmit={handleVerifyOTP} className="space-y-6">
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="pl-10 text-center tracking-[1em] h-12 font-mono text-lg"
+                  required
+                  maxLength={6}
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-medium"
+                disabled={loading || otp.length !== 6}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                    Verifying...
+                  </div>
+                ) : 'Verify Code'}
+              </Button>
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep('email')}
+                  className="w-full h-11"
+                >
+                  Change Email
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleResendOTP}
+                  disabled={timer > 0}
+                  className="w-full h-11 text-sm"
+                >
+                  {timer > 0 ? `Resend code in ${timer}s` : 'Resend code'}
+                </Button>
+              </div>
+            </form>
+          )}
 
-      {step === 'success' && (
-        <div className="text-center">
-          <p className="text-green-600 mb-2">✓ Email verified successfully!</p>
-          <p className="text-sm">You can now proceed with registration.</p>
-        </div>
-      )}
+          {step === 'success' && (
+            <div className="text-center space-y-6">
+              <div className="flex items-center justify-center">
+                <div className="rounded-full bg-green-100 p-3">
+                  <CheckCircle2 className="h-12 w-12 text-green-500" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xl font-semibold">Email Verified!</p>
+                <p className="text-sm text-gray-500">
+                  Thank you for verifying your email. You can now proceed with your registration.
+                </p>
+              </div>
+              <Button className="w-full h-12 text-base font-medium">
+                Continue to Registration
+              </Button>
+            </div>
+          )}
 
-      {error && (
-        <p className="text-red-500 text-sm mt-4">{error}</p>
-      )}
-    </CardContent>
-  </Card>
+          {error && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default SignupForm;
+}
