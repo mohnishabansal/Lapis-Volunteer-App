@@ -1,20 +1,18 @@
-// src/components/SignupForm.tsx
 "use client";
 
 import React, { useState } from 'react';
 import Input from "./ui/input";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
-import { Mail, KeyRound, ArrowRight, CheckCircle2, AlertCircle, User } from "lucide-react";
+import { Mail, KeyRound, ArrowRight, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
 
-type Step = 'details' | 'otp' | 'success';
+type Step = 'email' | 'otp';
 
-export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-    const [name, setName] = useState('');
+export default function SigninForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
-    const [step, setStep] = useState<Step>('details');
+    const [step, setStep] = useState<Step>('email');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [timer, setTimer] = useState(0);
@@ -40,10 +38,26 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
         setError('');
 
         try {
-            const res = await fetch('/api/send-otp', {
+            // First, check if the user exists
+            const checkUserRes = await fetch('/api/auth/check-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email })
+                body: JSON.stringify({ email })
+            });
+
+            const checkUserData = await checkUserRes.json();
+
+            if (!checkUserRes.ok) {
+                setError('Account not found. Please sign up first.');
+                setLoading(false);
+                return;
+            }
+
+            // If user exists, proceed with sending OTP
+            const res = await fetch('/api/signin/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
             });
 
             const data = await res.json();
@@ -52,7 +66,7 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
                 setStep('otp');
                 startResendTimer();
             } else {
-                setError(data.message || 'Failed to send OTP');
+                setError(data.message || 'Failed to send verification code');
             }
         } catch (err) {
             setError('Something went wrong. Please try again.');
@@ -67,7 +81,7 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
         setError('');
 
         try {
-            const res = await fetch('/api/verify-otp', {
+            const res = await fetch('/api/signin/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, otp })
@@ -76,9 +90,10 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
             const data = await res.json();
 
             if (res.ok) {
-                setStep('success');
+                // Redirect to dashboard on successful verification
+                window.location.href = '/dashboard';
             } else {
-                setError(data.message || 'Invalid OTP');
+                setError(data.message || 'Invalid verification code');
             }
         } catch (err) {
             setError('Something went wrong. Please try again.');
@@ -90,7 +105,6 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
     const handleResendOTP = async () => {
         if (timer > 0) return;
         await handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
-        startResendTimer();
     };
 
     return (
@@ -105,30 +119,18 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
                     </button>
                     <CardHeader className="space-y-1 pb-8">
                         <CardTitle className="text-3xl font-bold tracking-tight text-center">
-                            {step === 'details' && 'Sign up'}
-                            {step === 'otp' && 'Verify Email'}
-                            {step === 'success' && 'Welcome!'}
+                            Sign in
                         </CardTitle>
                         <CardDescription className="text-center text-gray-500">
-                            {step === 'details' && 'Enter your details to get started'}
-                            {step === 'otp' && 'Enter the verification code sent to your email'}
-                            {step === 'success' && 'Your email has been verified successfully'}
+                            {step === 'email' 
+                                ? 'Enter your email to sign in' 
+                                : 'Enter the verification code sent to your email'
+                            }
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {step === 'details' && (
+                        {step === 'email' && (
                             <form onSubmit={handleSendOTP} className="space-y-6">
-                                <div className="relative">
-                                    <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Enter your name"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="pl-10 h-12"
-                                        required
-                                    />
-                                </div>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                                     <Input
@@ -148,7 +150,7 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
                                     {loading ? (
                                         <div className="flex items-center gap-2">
                                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-                                            Sending...
+                                            Checking...
                                         </div>
                                     ) : (
                                         <div className="flex items-center justify-center gap-2">
@@ -184,13 +186,13 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
                                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
                                             Verifying...
                                         </div>
-                                    ) : 'Verify Code'}
+                                    ) : 'Sign in'}
                                 </Button>
                                 <div className="flex flex-col gap-3">
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => setStep('details')}
+                                        onClick={() => setStep('email')}
                                         className="w-full h-11"
                                     >
                                         Change Email
@@ -206,28 +208,6 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
                                     </Button>
                                 </div>
                             </form>
-                        )}
-
-                        {step === 'success' && (
-                            <div className="text-center space-y-6">
-                                <div className="flex items-center justify-center">
-                                    <div className="rounded-full bg-green-100 p-3">
-                                        <CheckCircle2 className="h-12 w-12 text-green-500" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-xl font-semibold">Email Verified!</p>
-                                    <p className="text-sm text-gray-500">
-                                        Thank you for verifying your email. You can now proceed with your registration.
-                                    </p>
-                                </div>
-                                <Button 
-                                    className="w-full h-12 text-base font-medium"
-                                    onClick={onClose}
-                                >
-                                    Continue to Registration
-                                </Button>
-                            </div>
                         )}
 
                         {error && (
