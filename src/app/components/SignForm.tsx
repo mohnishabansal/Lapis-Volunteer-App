@@ -2,14 +2,20 @@
 
 import React, { useState } from 'react';
 import Input from "./ui/input";
-import { Button } from "./ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 import { Mail, KeyRound, ArrowRight, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
 
 type Step = 'email' | 'otp';
 
-export default function SigninForm({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function SigninForm({ 
+  isOpen, 
+  onClose, 
+  onSignInSuccess 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void;
+  onSignInSuccess: (userData: any) => void;
+}) {
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [step, setStep] = useState<Step>('email');
@@ -38,31 +44,15 @@ export default function SigninForm({ isOpen, onClose }: { isOpen: boolean; onClo
         setError('');
 
         try {
-            // First, check if the user exists
-            const checkUserRes = await fetch('/api/auth/check-user', {
+            const res = await fetch('/api/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-
-            const checkUserData = await checkUserRes.json();
-
-            if (!checkUserRes.ok) {
-                setError('Account not found. Please sign up first.');
-                setLoading(false);
-                return;
-            }
-
-            // If user exists, proceed with sending OTP
-            const res = await fetch('/api/signin/send-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email, isSignIn: true })
             });
 
             const data = await res.json();
 
-            if (res.ok) {
+            if (data.success) {
                 setStep('otp');
                 startResendTimer();
             } else {
@@ -81,17 +71,17 @@ export default function SigninForm({ isOpen, onClose }: { isOpen: boolean; onClo
         setError('');
 
         try {
-            const res = await fetch('/api/signin/verify-otp', {
+            const res = await fetch('/api/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp })
+                body: JSON.stringify({ email, otp, isSignIn: true })
             });
 
             const data = await res.json();
 
-            if (res.ok) {
-                // Redirect to dashboard on successful verification
-                window.location.href = '/dashboard';
+            if (data.success) {
+                // Call onSignInSuccess with user data
+                onSignInSuccess(data.user);
             } else {
                 setError(data.message || 'Invalid verification code');
             }
@@ -102,123 +92,116 @@ export default function SigninForm({ isOpen, onClose }: { isOpen: boolean; onClo
         }
     };
 
-    const handleResendOTP = async () => {
+    const handleResendOTP = () => {
         if (timer > 0) return;
-        await handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
+        handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-md shadow-lg">
-                <div className="relative">
+            <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
+                <div className="relative p-6">
                     <button 
                         onClick={onClose}
                         className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
                     >
                         ✕
                     </button>
-                    <CardHeader className="space-y-1 pb-8">
-                        <CardTitle className="text-3xl font-bold tracking-tight text-center">
-                            Sign in
-                        </CardTitle>
-                        <CardDescription className="text-center text-gray-500">
-                            {step === 'email' 
-                                ? 'Enter your email to sign in' 
-                                : 'Enter the verification code sent to your email'
-                            }
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {step === 'email' && (
-                            <form onSubmit={handleSendOTP} className="space-y-6">
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <Input
-                                        type="email"
-                                        placeholder="Enter your email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="pl-10 h-12"
-                                        required
-                                    />
-                                </div>
-                                <Button 
-                                    type="submit" 
-                                    className="w-full h-12 text-base font-medium"
-                                    disabled={loading}
-                                >
-                                    {loading ? (
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-                                            Checking...
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center gap-2">
-                                            Continue
-                                            <ArrowRight className="h-4 w-4" />
-                                        </div>
-                                    )}
-                                </Button>
-                            </form>
-                        )}
+                    <h2 className="text-2xl font-bold text-center mb-4">
+                        Sign in
+                    </h2>
+                    <p className="text-center text-gray-600 mb-6">
+                        {step === 'email' 
+                            ? 'Enter your email to sign in' 
+                            : 'Enter the verification code sent to your email'
+                        }
+                    </p>
 
-                        {step === 'otp' && (
-                            <form onSubmit={handleVerifyOTP} className="space-y-6">
-                                <div className="relative">
-                                    <KeyRound className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Enter 6-digit code"
-                                        value={otp}
-                                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                        className="pl-10 text-center tracking-[1em] h-12 font-mono text-lg"
-                                        required
-                                        maxLength={6}
-                                    />
-                                </div>
-                                <Button 
-                                    type="submit" 
-                                    className="w-full h-12 text-base font-medium"
-                                    disabled={loading || otp.length !== 6}
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mb-4 flex items-center">
+                            <AlertCircle className="mr-2 h-5 w-5" />
+                            <AlertDescription>{error}</AlertDescription>
+                        </div>
+                    )}
+                    
+                    {step === 'email' ? (
+                        <form onSubmit={handleSendOTP} className="space-y-4">
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                <Input
+                                    type="email"
+                                    placeholder="Enter your email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="pl-10"
+                                    required
+                                />
+                            </div>
+                            <button 
+                                type="submit" 
+                                className="w-full bg-sky-500 text-white py-2 rounded-lg hover:bg-sky-600 transition-colors flex items-center justify-center"
+                                disabled={loading || !email}
+                            >
+                                {loading ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                                        Sending...
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center gap-2">
+                                        Continue
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleVerifyOTP} className="space-y-4">
+                            <div className="relative">
+                                <KeyRound className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                <Input
+                                    type="text"
+                                    placeholder="Enter 6-digit code"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    className="pl-10 text-center tracking-[0.5em] font-mono text-lg"
+                                    required
+                                    maxLength={6}
+                                />
+                            </div>
+                            <button 
+                                type="submit" 
+                                className="w-full bg-sky-500 text-white py-2 rounded-lg hover:bg-sky-600 transition-colors"
+                                disabled={loading || otp.length !== 6}
+                            >
+                                {loading ? (
+                                    <div className="flex items-center gap-2 justify-center">
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                                        Verifying...
+                                    </div>
+                                ) : 'Sign in'}
+                            </button>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('email')}
+                                    className="w-full border border-sky-300 text-sky-500 py-2 rounded-lg hover:bg-sky-50 transition-colors"
                                 >
-                                    {loading ? (
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-                                            Verifying...
-                                        </div>
-                                    ) : 'Sign in'}
-                                </Button>
-                                <div className="flex flex-col gap-3">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setStep('email')}
-                                        className="w-full h-11"
-                                    >
-                                        Change Email
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={handleResendOTP}
-                                        disabled={timer > 0}
-                                        className="w-full h-11 text-sm"
-                                    >
-                                        {timer > 0 ? `Resend code in ${timer}s` : 'Resend code'}
-                                    </Button>
-                                </div>
-                            </form>
-                        )}
-
-                        {error && (
-                            <Alert variant="destructive" className="mt-6">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
-                    </CardContent>
+                                    Change Email
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleResendOTP}
+                                    disabled={timer > 0}
+                                    className="w-full text-sm text-sky-500 hover:bg-sky-50 py-2 rounded-lg transition-colors"
+                                >
+                                    {timer > 0 ? `Resend code in ${timer}s` : 'Resend code'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }

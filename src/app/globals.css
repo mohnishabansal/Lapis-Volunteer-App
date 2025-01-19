@@ -74,3 +74,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+button.flex.items-center.gap-2.px-3.py-1\.5.border.border-sky-300.rounded-md.hover\:bg-sky-50.transition-colors {
+  color: #000;
+}
+h2.text-2xl.font-bold.mb-4 {
+  color: #000;
+  text-align: center;
+}
+form.bg-white.p-6.rounded-lg.shadow-md.max-w-md.mx-auto {
+  max-width: 70rem;
+  padding: 64px;
+  margin-top: 75px;
+}
+input.mt-1.p-2.border.rounded-md.shadow-sm.focus\:outline-none.focus\:ring-2.focus\:ring-blue-500.disabled\:bg-gray-200.disabled\:cursor-not-allowed.bg-white {
+  color: #000;
+}

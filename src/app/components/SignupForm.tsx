@@ -43,7 +43,8 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
             const res = await fetch('/api/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email })
+                body: JSON.stringify({ email, otp, name }) // Include name here
+
             });
 
             const data = await res.json();
@@ -54,6 +55,7 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
             } else {
                 setError(data.message || 'Failed to send OTP');
             }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             setError('Something went wrong. Please try again.');
         } finally {
@@ -80,6 +82,7 @@ export default function SignupForm({ isOpen, onClose }: { isOpen: boolean; onClo
             } else {
                 setError(data.message || 'Invalid OTP');
             }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
             setError('Something went wrong. Please try again.');
         } finally {

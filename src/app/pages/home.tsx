@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Users, Heart } from 'lucide-react';
-import SigninForm from '../components/SignForm';  // Correctly importing SigninForm
-import SignupForm from '../components/SignupForm';  // Correctly importing SignupForm
+import { Users, Heart, User, LogOut, LayoutDashboard } from 'lucide-react';
+import SigninForm from '../components/SignForm';
+import SignupForm from '../components/SignupForm';
+import RegistrationForm from '../components/RegistrationForm';
 
 const LapisLogo = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" className="h-12">
@@ -14,11 +15,75 @@ const LapisLogo = () => (
 );
 
 const LandingPage = () => {
+  const [user, setUser] = useState(null);
   const [showSignup, setShowSignup] = useState(false);
   const [showSignin, setShowSignin] = useState(false);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-500 to-sky-700 text-white">
+  const handleSignIn = (userData) => {
+    setUser(userData);
+    setShowSignin(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const response = await fetch('/api/signout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setUser(null);
+      } else {
+        console.error('Sign out failed');
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  const handleDashboardClick = () => {
+    window.location.href = '/dashboard';
+  };
+
+  // Authentication Navbar
+  const AuthNavbar = () => (
+    <nav className="p-4 bg-white shadow-md">
+      <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="flex items-center">
+          <LapisLogo />
+          <span className="ml-4 text-sky-600">Ramadan Project</span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <User className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">{user?.name || 'User'}</span>
+          </div>
+          
+          <button 
+            onClick={handleDashboardClick}
+            className="flex items-center gap-2 px-3 py-1.5 border border-sky-300 rounded-md hover:bg-sky-50 transition-colors"
+          >
+            <LayoutDashboard className="h-4 w-4 text-sky-500" />
+            Dashboard
+          </button>
+          
+          <button 
+            onClick={handleSignOut}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+
+  // Main Content
+  const MainContent = () => (
+    <>
       {/* Navigation */}
       <nav className="p-6 bg-white">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -90,6 +155,17 @@ const LandingPage = () => {
       <footer className="max-w-7xl mx-auto px-6 py-10 text-center text-gray-100">
         <p>© 2025 LAPIS Group. All rights reserved.</p>
       </footer>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-sky-500 to-sky-700 text-white">
+      {/* Show AuthNavbar when user is signed in */}
+      {user && <AuthNavbar />}
+
+       {user &&  <RegistrationForm /> }
+      {/* Show main content if not signed in */}
+      {!user && <MainContent />}
 
       {/* Auth Modals */}
       {showSignup && (
@@ -103,6 +179,7 @@ const LandingPage = () => {
         <SigninForm 
           isOpen={showSignin} 
           onClose={() => setShowSignin(false)} 
+          onSignInSuccess={handleSignIn}
         />
       )}
     </div>

@@ -33,6 +33,8 @@ const Input: React.FC<InputProps> = ({
         disabled={disabled}
         {...props} // This will spread props like 'required', 'maxLength', etc.
       />
+
+      
     </div>
   );
 };

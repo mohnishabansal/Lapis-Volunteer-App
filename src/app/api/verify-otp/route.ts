@@ -1,6 +1,20 @@
 // src/app/api/verify-otp/route.ts
 import { NextResponse } from 'next/server';
 
+// Simulated user database (in a real app, this would be a database query)
+const userDatabase = {
+  'john@example.com': { 
+    name: 'John Doe', 
+    email: 'john@example.com',
+    role: 'volunteer'
+  },
+  'sarah@example.com': { 
+    name: 'Sarah Smith', 
+    email: 'sarah@example.com',
+    role: 'admin'
+  }
+};
+
 export async function POST(request: Request) {
   try {
     const { email, otp } = await request.json();
@@ -17,7 +31,18 @@ export async function POST(request: Request) {
     if (storedOTP.code === otp) {
       // Clear OTP after successful verification
       global.otpStore?.delete(email);
-      return NextResponse.json({ success: true });
+
+      // Retrieve user information 
+      const user = userDatabase[email] || { 
+        name: email.split('@')[0], 
+        email: email,
+        role: 'user'
+      };
+
+      return NextResponse.json({ 
+        success: true, 
+        user: user 
+      });
     }
 
     return NextResponse.json(

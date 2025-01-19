@@ -11,6 +11,7 @@ type OTPData = {
 
 // Using global to persist data between API calls in development
 declare global {
+  // eslint-disable-next-line no-var
   var otpStore: Map<string, OTPData> | undefined;
 }
 
